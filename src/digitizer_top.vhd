@@ -6,7 +6,7 @@ entity digitizer_top is
         rst : IN STD_LOGIC;
         vp : in STD_LOGIC;
         vn : in STD_LOGIC;
-        xadc_out : out STD_LOGIC_VECTOR(15 DOWNTO 0)
+        avg_out : out STD_LOGIC_VECTOR(15 DOWNTO 0)
         --xadc_valid : out STD_LOGIC
     );
 end entity digitizer_top;
@@ -53,11 +53,28 @@ architecture Behavioral of digitizer_top is
         );
     end component axi_slv_interface;
 
+    component normalizer is
+        generic(
+            DATA_WIDTH : integer := 16;
+            AVG_LENGTH : integer := 128; -- Depth of the average
+            SAMPLING_FREQ_MHZ : integer := 1 -- Sampling frequency of raw data in MHz based on 100MHz input clk
+        );
+        port (
+            clk_100m : in STD_LOGIC;
+            rst_n : in STD_LOGIC;
+            raw_data : in STD_LOGIC_VECTOR(DATA_WIDTH-1 DOWNTO 0);
+            avg_data : out STD_LOGIC_VECTOR(DATA_WIDTH-1 DOWNTO 0);
+            avg_data_valid : out STD_LOGIC
+        );
+    end component normalizer;
+
 
     signal axis_tvalid : STD_LOGIC;
     signal axis_tready : STD_LOGIC;
     signal axis_tid : STD_LOGIC_VECTOR(4 DOWNTO 0);
     signal axis_tdata : STD_LOGIC_VECTOR(15 DOWNTO 0);
+    signal xadc_out : STD_LOGIC_VECTOR(15 DOWNTO 0);
+    signal avg_data_valid : STD_LOGIC;
 
     signal rst_n : STD_LOGIC;
 
@@ -105,5 +122,20 @@ begin
         axis_rec_ready => axis_tready,
         axis_rec_valid => open
     );
+
+    normalizer_inst : normalizer
+     generic map(
+        DATA_WIDTH => 16,
+        AVG_LENGTH => 128,
+        SAMPLING_FREQ_MHZ => 1
+    )
+     port map(
+        clk_100m => clk_100m,
+        rst_n => rst_n,
+        raw_data => xadc_out,
+        avg_data => avg_out,
+        avg_data_valid => avg_data_valid
+    );
+    
 
 end Behavioral;
